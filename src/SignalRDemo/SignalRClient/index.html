@@ -1,0 +1,95 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>client - demo</title>
+</head>
+<body>
+    <div>
+        <div>
+            <input id="txtUserName" type="text" placeholder="账号" />
+            <input id="txtPasswod" type="password" placeholder="密码" /> <input id="btnLogin" type="button" value="登录" />
+            <br />
+            <br />
+            <input id="txtMessage" type="text" placeholder="消息" /> <input id="btnSend" type="button" value="发送" />
+        </div>
+        <ul id="usersList">
+        </ul>
+        <ul id="messagesList">
+        </ul>
+    </div>
+
+    <script src="Scripts/jquery-1.6.4.min.js"></script>
+    <script src="Scripts/jquery.signalR-2.4.2.min.js"></script>
+    <script type="text/javascript">
+        $(function () {
+            var connection = $.hubConnection("http://localhost:56377/signalr", { useDefaultPath: false });
+            var contosoChatHubProxy = connection.createHubProxy('demoChatHub');
+            connection.start()
+                .done(function () { console.log('Now connected, connection ID=' + connection.id); })
+                .fail(function () { console.log('Could not connect'); });
+
+            //-----登录-----
+            document.getElementById("btnLogin").addEventListener("click", function (event) {
+                var username = $("#txtUserName").val();
+                var password = $("#txtPasswod").val();
+                contosoChatHubProxy.invoke('login', username, password).done(function () {
+                    console.log('Invocation of login succeeded');
+                }).fail(function (error) {
+                    console.log('Invocation of login failed. Error: ' + error);
+                });
+                event.preventDefault();
+            });
+            contosoChatHubProxy.on('LoginResponse', function (res) {
+                if (res && res.status == 0) {
+                    alert(res.message);
+                    getUsers(contosoChatHubProxy);
+                } else {
+                    alert('登录失败！');
+                }
+            });
+            //-----登录-----
+
+            //-----消息-----
+            document.getElementById("btnSend").addEventListener("click", function (event) {
+                var username = $("#txtUserName").val();
+                var message = $("#txtMessage").val();
+                contosoChatHubProxy.invoke('sendMessage', username, message).done(function () {
+                    console.log('Invocation of sendMessage succeeded');
+                }).fail(function (error) {
+                    console.log('Invocation of sendMessage failed. Error: ' + error);
+                });
+                event.preventDefault();
+            });
+            contosoChatHubProxy.on('SendMessageResponse', function (res) {
+                if (res && res.status == 0) {
+                    var li = document.createElement("li");
+                    li.textContent = res.message;
+                    document.getElementById("messagesList").appendChild(li);
+                } else {
+                    alert(res.message);
+                }
+            });
+            //-----消息-----
+
+            //获取在线用户
+            function getUsers(contosoChatHubProxy) {
+                contosoChatHubProxy.invoke('getUsers').done(function () {
+                    console.log('Invocation of getUsers succeeded');
+                }).fail(function (error) {
+                    console.log('Invocation of getUsers failed. Error: ' + error);
+                });
+                contosoChatHubProxy.on('GetUsersResponse', function (res) {
+                    if (res && res.status == 0) {
+                        var _html = '<li>在线用户：</li>';
+                        for (var i = 0; i < res.onlineUser.length; i++) {
+                            _html += `<li>${res.onlineUser[i].userName}</li>`;
+                        }
+                        document.getElementById("usersList").innerHTML = _html;
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
